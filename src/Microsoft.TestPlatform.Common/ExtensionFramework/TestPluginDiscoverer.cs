@@ -130,6 +130,8 @@ namespace Microsoft.VisualStudio.TestPlatform.Common.ExtensionFramework
             Debug.Assert(files != null, "null files");
             Debug.Assert(pluginInfos != null, "null pluginInfos");
 
+            ISet<string> undiscoverableAssemblies = new HashSet<string>();
+
             // Scan each of the files for data extensions.
             foreach (var file in files)
             {
@@ -137,11 +139,15 @@ namespace Microsoft.VisualStudio.TestPlatform.Common.ExtensionFramework
                 {
                     continue;
                 }
+
+                string assemblyName = null; 
+
                 try
                 {
-                    Assembly assembly = null;
-                    var assemblyName = Path.GetFileNameWithoutExtension(file);
-                    assembly = Assembly.Load(new AssemblyName(assemblyName));
+                    assemblyName = Path.GetFileNameWithoutExtension(file);
+                    Assembly assembly = undiscoverableAssemblies.Contains(assemblyName) ?
+                        Assembly.LoadFile(file) :
+                        Assembly.Load(new AssemblyName(assemblyName));
                     if (assembly != null)
                     {
                         this.GetTestExtensionsFromAssembly<TPluginInfo, TExtension>(assembly, pluginInfos);
@@ -153,10 +159,12 @@ namespace Microsoft.VisualStudio.TestPlatform.Common.ExtensionFramework
                     string fileLoadErrorMessage = string.Format(CultureInfo.CurrentUICulture, CommonResources.FailedToLoadAdapaterFile, file);
                     TestSessionMessageLogger.Instance.SendMessage(TestMessageLevel.Warning, fileLoadErrorMessage);
                     UnloadableFiles.Add(file);
+                    undiscoverableAssemblies.Add(assemblyName);
                 }
                 catch (Exception e)
                 {
                     EqtTrace.Warning("TestPluginDiscoverer: Failed to load extensions from file '{0}'.  Skipping test extension scan for this file.  Error: {1}", file, e);
+                    undiscoverableAssemblies.Add(assemblyName);
                 }
             }
         }
@@ -193,7 +201,7 @@ namespace Microsoft.VisualStudio.TestPlatform.Common.ExtensionFramework
                         EqtTrace.Warning("LoaderExceptions: {0}", ex);
                     }
                 }
-                return;
+                throw;
             }
 
             if ((types != null) && (types.Length > 0))
