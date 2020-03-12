@@ -147,7 +147,9 @@ namespace Microsoft.VisualStudio.TestPlatform.Common.ExtensionFramework
                     assemblyName = Path.GetFileNameWithoutExtension(file);
                     Assembly assembly = undiscoverableAssemblies.Contains(assemblyName) ?
                         Assembly.LoadFile(file) :
-                        Assembly.Load(new AssemblyName(assemblyName));
+                        assemblyName.Contains("TraceDataCollector") ?
+                            Assembly.Load(new AssemblyName(assemblyName) { Version = new Version(16, 0, 0, 0) } ) :
+                            Assembly.Load(new AssemblyName(assemblyName));
                     if (assembly != null)
                     {
                         this.GetTestExtensionsFromAssembly<TPluginInfo, TExtension>(assembly, pluginInfos);
